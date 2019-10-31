@@ -7,6 +7,8 @@ RUN set -ex \
 
 ARG RELEASE_DATE
 ENV RELEASE_DATE=$RELEASE_DATE
+ARG PLUGIN_TAG
+ENV PLUGIN_TAG=$PLUGIN_TAG
 ARG COMMIT_HASH
 ENV COMMIT_HASH=$COMMIT_HASH
 ARG DIRTY
@@ -17,8 +19,8 @@ RUN go mod download
 
 COPY . /src
 RUN set -ex \
-    && echo --ldflags "-extldflags '-static' -X main.Version=${RELEASE_DATE} -X main.CommitHash=${COMMIT_HASH}${DIRTY}" \
-    && go install --ldflags "-extldflags '-static' -X main.Version=${RELEASE_DATE} -X main.CommitHash=${COMMIT_HASH}${DIRTY}"
+    && echo --ldflags "-extldflags '-static' -X main.Version=${RELEASE_DATE} -X main.BranchName=${PLUGIN_TAG} -X main.CommitHash=${COMMIT_HASH}${DIRTY}" \
+    && go install --ldflags "-extldflags '-static' -X main.Version=${RELEASE_DATE} -X main.BranchName=${PLUGIN_TAG} -X main.CommitHash=${COMMIT_HASH}${DIRTY}"
 
 RUN set -ex \
     && apk del .build-deps
@@ -33,7 +35,9 @@ ENV SEAWEEDFS_VERSION=$SEAWEEDFS_VERSION
 RUN apk update && \
     apk add fuse && \
     apk add --no-cache --virtual build-dependencies --update wget curl ca-certificates && \
+    echo "DOWNLOAD seaweedfs ${SEAWEEDFS_VERSION}" && \
     wget -qO /tmp/linux_amd64.tar.gz https://github.com/chrislusf/seaweedfs/releases/download/${SEAWEEDFS_VERSION}/linux_amd64.tar.gz && \
+    echo "got seaweedfs ${SEAWEEDFS_VERSION}" && \
     tar -C /usr/bin/ -xzvf /tmp/linux_amd64.tar.gz && \
     apk del build-dependencies && \
     rm -rf /tmp/*

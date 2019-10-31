@@ -2,7 +2,7 @@
 
 PREFIX = svendowideit/seaweedfs-volume
 PLUGIN_NAME = ${PREFIX}-plugin
-PLUGIN_TAG ?= develop
+PLUGIN_TAG ?=$(shell git rev-parse --abbrev-ref HEAD)
 
 RELEASE_DATE=$(shell date +%F)
 COMMIT_HASH=$(shell git rev-parse --short HEAD 2>/dev/null)
@@ -11,20 +11,32 @@ ifneq ($(GITSTATUS),)
   DIRTY=-dirty
 endif
 
-all: clean rootfs create enable test
+all: clean push-rootfs
 
 build:
-	go build --ldflags "-extldflags '-static' -X main.Version=${RELEASE_DATE} -X main.CommitHash=${COMMIT_HASH}${DIRTY}" .
+	go build --ldflags "-extldflags '-static' \
+		-X main.Version=${RELEASE_DATE} \
+		-X main.BranchName=${PLUGIN_TAG} \
+		-X main.CommitHash=${COMMIT_HASH}${DIRTY}" \
+		.
 
 clean:
 	@echo "### rm ./plugin"
 	@rm -rf ./plugin
 
 rootfs:
-	@echo "### docker build: rootfs image with ${PLUGIN_NAME}-rootfs (${RELEASE_DATE}) ${COMMIT_HASH}${DIRTY}"
+	@echo "### docker build: rootfs image with ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG} (${RELEASE_DATE}) ${COMMIT_HASH}${DIRTY}"
 	@echo "${GITSTATUS}"
-	@docker build --target builder -t ${PLUGIN_NAME}-rootfs:build-${PLUGIN_TAG} --build-arg "RELEASE_DATE=${RELEASE_DATE}" --build-arg "COMMIT_HASH=${COMMIT_HASH}" --build-arg "DIRTY=${DIRTY}" .
-	@docker build -t ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG} --build-arg "RELEASE_DATE=${RELEASE_DATE}" --build-arg "COMMIT_HASH=${COMMIT_HASH}" --build-arg "DIRTY=${DIRTY}" .
+	@docker build --target builder -t ${PLUGIN_NAME}-rootfs:build-${PLUGIN_TAG} \
+		--build-arg "RELEASE_DATE=${RELEASE_DATE}" \
+		--build-arg "PLUGIN_TAG=${PLUGIN_TAG}" \
+		--build-arg "COMMIT_HASH=${COMMIT_HASH}" \
+		--build-arg "DIRTY=${DIRTY}" .
+	@docker build -t ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG} \
+		--build-arg "RELEASE_DATE=${RELEASE_DATE}" \
+		--build-arg "PLUGIN_TAG=${PLUGIN_TAG}" \
+		--build-arg "COMMIT_HASH=${COMMIT_HASH}" \
+		--build-arg "DIRTY=${DIRTY}" .
 	@echo "### create rootfs directory in ./plugin/rootfs"
 	@mkdir -p ./plugin/rootfs
 	@docker create --name tmp ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
@@ -48,25 +60,26 @@ run-rootfs:
 		-e DEBUG=true \
 		${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
 
-create:
-	@echo "### remove existing plugin swarm if exists"
-	@docker volume rm -f test4 || true
-	@docker plugin rm -f ${PLUGIN_NAME}:${PLUGIN_TAG} || true
-	@echo "### create new plugin for pushing to Docker hub ${PLUGIN_NAME}:${PLUGIN_TAG} from ./plugin"
-	@docker plugin create ${PLUGIN_NAME}:${PLUGIN_TAG} ./plugin
-	@docker plugin set ${PLUGIN_NAME}:${PLUGIN_TAG} DEBUG=true
+# not using real managed docker plugins now, using a swarm service
+# create:
+# 	@echo "### remove existing plugin swarm if exists"
+# 	@docker volume rm -f test4 || true
+# 	@docker plugin rm -f ${PLUGIN_NAME}:${PLUGIN_TAG} || true
+# 	@echo "### create new plugin for pushing to Docker hub ${PLUGIN_NAME}:${PLUGIN_TAG} from ./plugin"
+# 	@docker plugin create ${PLUGIN_NAME}:${PLUGIN_TAG} ./plugin
+# 	@docker plugin set ${PLUGIN_NAME}:${PLUGIN_TAG} DEBUG=true
 
-#TODO: add an "ensure seaweedfs stack is up and running step that is used by "make all"
+# #TODO: add an "ensure seaweedfs stack is up and running step that is used by "make all"
 
-enable:		
-	@echo "### enable plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
-	@docker plugin enable ${PLUGIN_NAME}:${PLUGIN_TAG}
+# enable:		
+# 	@echo "### enable plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
+# 	@docker plugin enable ${PLUGIN_NAME}:${PLUGIN_TAG}
 
-ps:
-	@ps -U root -u | grep docker-plugin-seaweedf
+# ps:
+# 	@ps -U root -u | grep docker-plugin-seaweedf
 
-enter:
-	@sudo nsenter --target $(shell ps -U root -u | grep /docker-plugin-seaweedfs | xargs | cut -f2 -d" ") --mount --uts --ipc --net --pid sh
+# enter:
+# 	@sudo nsenter --target $(shell ps -U root -u | grep /docker-plugin-seaweedfs | xargs | cut -f2 -d" ") --mount --uts --ipc --net --pid sh
 
 mk-test-mount:
 	@docker volume create -d ${PLUGIN_NAME}:${PLUGIN_TAG} -o uid=33 -o gid=10 -o umask=0773 test4
@@ -104,11 +117,11 @@ mountall:
 	@docker run --rm -it --net=seaweedfs_internal --cap-add=SYS_ADMIN --device=/dev/fuse:/dev/fuse --security-opt=apparmor:unconfined --entrypoint=weed ${PLUGIN_NAME}:${PLUGIN_TAG} mount -filer=filer:8888 -dir=/mnt -filer.path=/
 
 
-logs:
-	@sudo journalctl -fu docker | grep $(shell docker plugin inspect --format "{{.Id}}" ${PLUGIN_NAME}:${PLUGIN_TAG})
+# logs:
+# 	@sudo journalctl -fu docker | grep $(shell docker plugin inspect --format "{{.Id}}" ${PLUGIN_NAME}:${PLUGIN_TAG})
 
-push:  clean rootfs create enable
-	@echo "### push plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
-	@docker push ${PLUGIN_NAME}-rootfs:build-${PLUGIN_TAG}
-	@docker push ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
-	@docker plugin push ${PLUGIN_NAME}:${PLUGIN_TAG}
+# push:  clean rootfs create enable
+# 	@echo "### push plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
+# 	@docker push ${PLUGIN_NAME}-rootfs:build-${PLUGIN_TAG}
+# 	@docker push ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
+# 	@docker plugin push ${PLUGIN_NAME}:${PLUGIN_TAG}

@@ -79,15 +79,6 @@ services:
     volumes:
       - data:/data
 
-  # docker-volume-plugin-run-once:
-  #   image: docker:latest
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   command: "docker plugin install --alias swarm:develop --grant-all-permissions svendowideit/seaweedfs-volume-plugin:develop DEBUG=true"
-  #   deploy:
-  #     mode: global
-  #     restart_policy:
-  #       condition: none
   prepare-plugin-dir-run-once:
     image: alpine:latest
     volumes:
@@ -100,7 +91,7 @@ services:
 
 
   docker-volume-plugin:
-    image: svendowideit/seaweedfs-volume-plugin-rootfs:develop
+    image: svendowideit/seaweedfs-volume-plugin-rootfs:golang
     environment:
       DEBUG: 'true'
     volumes:

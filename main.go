@@ -38,6 +38,9 @@ var Version string
 // CommitHash is set from the go build commandline
 var CommitHash string
 
+// BranchName is set from the go build commandline
+var BranchName string
+
 // ETCD prefix for volume info
 var keyPrefix = "/docker-seaweedfs-plugin/"
 
@@ -370,7 +373,7 @@ func (d *seaweedfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error)
 
 // List of volumes registered with the plugin.
 func (d *seaweedfsDriver) List() (*volume.ListResponse, error) {
-	logrus.WithField("method", "list").Debugf("version %s, build %s\n", Version, CommitHash)
+	logrus.WithField("method", "list").Debugf("version %s, build %s, branch: %s\n", Version, CommitHash, BranchName)
 
 	var vols []*volume.Volume
 	kv, err := getStore()
@@ -400,7 +403,7 @@ func (d *seaweedfsDriver) List() (*volume.ListResponse, error) {
 // Get the list of capabilities the driver supports.
 // The driver is not required to implement Capabilities. If it is not implemented, the default values are used.
 func (d *seaweedfsDriver) Capabilities() *volume.CapabilitiesResponse {
-	logrus.WithField("method", "capabilities").Debugf("version %s, build %s\n", Version, CommitHash)
+	logrus.WithField("method", "capabilities").Debugf("version %s, build %s, branch: %s\n", Version, CommitHash, BranchName)
 
 	return &volume.CapabilitiesResponse{Capabilities: volume.Capability{Scope: "local"}}
 }
@@ -483,7 +486,7 @@ func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) error {
 	// 	"--device=/dev/fuse:/dev/fuse",
 	// 	"--security-opt=apparmor:unconfined",
 	// 	"--entrypoint=weed",
-	// 	"svendowideit/seaweedfs-volume-plugin-rootfs:develop", // TODO: need to figure this out dynamically
+	// 	"svendowideit/seaweedfs-volume-plugin-rootfs:<BRANCHNAME>", // TODO: need to figure this out dynamically
 	// 	"-v", "2",
 	// 	"mount",
 	// 	"-filer=filer:8888",
@@ -496,11 +499,15 @@ func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) error {
 	// if they force kill the plugin-vol (so long as its not yet in use?) - and then remove the mount point, and ???
 	// OR if the settings are right, we could just reuse it?
 
+	imageName := "svendowideit/seaweedfs-volume-plugin-rootfs:" + BranchName
 	containerName := "seaweed-volume-plugin-" + v.Name
 
+	// This starts a new container because the non-swarm service mode plugin doesn't get access to the seaweedfs stack
+	// TODO: can probably bring this inside this container now that we're a swarm service, but IDK what's easier to debug...
+	// TODO: it might also be nice for it to be a service, IDK what the pros/cons are.
 	_, err := runContainer(
 		&container.Config{
-			Image:      "svendowideit/seaweedfs-volume-plugin-rootfs:develop",
+			Image:      imageName,
 			User:       fmt.Sprintf("%d", uid),
 			Entrypoint: []string{"weed"},
 			Cmd: []string{
@@ -544,7 +551,7 @@ func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) error {
 		},
 		containerName,
 	)
-	logrus.WithField("method", "mountVolume").Debugf("Started %s", containerName)
+	logrus.WithField("method", "mountVolume").WithField("image", imageName).Debugf("Starting %s", containerName)
 	if err != nil {
 		return logError("Error runing Container: %s", err)
 	}
@@ -583,7 +590,7 @@ func getPluginDir() string {
 
 	containerID, err := runContainer(
 		&container.Config{
-			Image:      "svendowideit/seaweedfs-volume-plugin-rootfs:develop",
+			Image:      "svendowideit/seaweedfs-volume-plugin-rootfs:" + BranchName,
 			Entrypoint: []string{"find"},
 			Cmd:        []string{"/var/lib/docker/plugins/", "-name", filename},
 		},
@@ -681,7 +688,7 @@ func main() {
 	if ok, _ := strconv.ParseBool(debug); ok {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-	logrus.Infof("Version %s, build %s\n", Version, CommitHash)
+	logrus.Infof("Version %s, build %s, branch: %s\n", Version, CommitHash, BranchName)
 
 	pluginDir := getPluginDir()
 	logrus.Infof("Plugin dir: %s", pluginDir)
