@@ -1,4 +1,6 @@
-[etcd]
+
+[leveldb3]
+# similar to leveldb2.
+# each bucket has its own meta store.
 enabled = true
-servers = "etcd:2379"
-timeout = "3s"
+dir = "/filer/"                                     # directory to store level db files

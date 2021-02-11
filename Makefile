@@ -11,6 +11,9 @@ ifneq ($(GITSTATUS),)
   DIRTY=-dirty
 endif
 
+stack:
+	@docker stack deploy -c seaweedfs.yml seaweedfs
+
 all: clean push-rootfs
 
 build:
@@ -51,7 +54,7 @@ push-rootfs: rootfs
 	@docker push ${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
 
 run-rootfs:
-	@docker run --rm -it \
+	@docker run --rm -it --name debug_swarmfs \
 		-v /var/lib/docker/plugins/seaweedfs/rootfs/tmp:/tmp \
 		-v /var/lib/docker/plugins/seaweedfs/rootfs/mnt:/mnt \
 		-v /var/lib/docker/plugins/seaweedfs/propagated-mount:/propagated-mount \
@@ -59,6 +62,10 @@ run-rootfs:
 		--net=seaweedfs_internal \
 		-e DEBUG=true \
 		${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
+
+test-filer:
+	#@docker exec -it debug_swarmfs curl -F "filename=/etc/hostname" http://filer:8888/docker-seaweedfs-plugin/test
+	@docker run --rm -it --net seaweedfs_internal onaci/curl -F "filename=/etc/hostname" http://filer:8888/docker-seaweedfs-plugin/test
 
 # not using real managed docker plugins now, using a swarm service
 # create:

@@ -6,6 +6,8 @@ replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.3.0
 
 replace github.com/docker/docker => github.com/docker/engine v0.0.0-20190307005417-54dddadc7d5d
 
+replace github.com/linxGnu/goseaweedfs => github.com/tikazyq/goseaweedfs v0.1.6-0.20201225141035-79f067805d7e
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.13 // indirect
@@ -18,6 +20,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
+	github.com/linxGnu/goseaweedfs v0.1.5
 	github.com/morikuni/aec v0.0.0-20170113033406-39771216ff4c // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
