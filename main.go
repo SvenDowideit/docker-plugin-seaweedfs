@@ -93,7 +93,7 @@ func (d *seaweedfsDriver) Remove(r *volume.RemoveRequest) error {
 		return logError("volume %s not found", r.Name)
 	}
 
-	if v.connections != 0 {
+	if v.connections() != 0 {
 		return logError("volume %s is currently used by a container", r.Name)
 	}
 
@@ -136,7 +136,7 @@ func (d *seaweedfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, 
 	}
 	logrus.WithField("volume-info", r.Name).Debugf("%#v", v)
 
-	if v.connections == 0 {
+	if v.connections() == 0 {
 		fi, err := os.Lstat(v.Mountpoint())
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(v.Mountpoint(), 0755); err != nil {
@@ -155,7 +155,7 @@ func (d *seaweedfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, 
 		}
 	}
 
-	v.connections++
+	v.addConnection(r.ID)
 	if err = updateVolumeInfo(v); err != nil {
 		logrus.WithField("method", "mount").WithField("updateVolumeInfo ERROR", err).Errorf("%#v", v)
 	} else {
@@ -177,7 +177,7 @@ func (d *seaweedfsDriver) Unmount(r *volume.UnmountRequest) error {
 		return logError("volume %s not found", r.Name)
 	}
 
-	v.connections--
+	v.delConnection(r.ID)
 
 	// TODO: OMG - how to make a shared concept of this??
 	// TODO: I think it might be easier to not unmount until there are no more nodes using it (for now)
@@ -192,8 +192,7 @@ func (d *seaweedfsDriver) Unmount(r *volume.UnmountRequest) error {
 	// get some interesting speedups by keeping the fusemount container running
 	return nil
 
-	if v.connections <= 0 {
-		v.connections = 0
+	if v.connections() <= 0 {
 		updateVolumeInfo(v)
 
 		if err = d.unmountVolume(&v); err != nil {

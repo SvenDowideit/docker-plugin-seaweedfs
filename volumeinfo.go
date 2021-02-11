@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	//"sync"
 	"time"
@@ -25,9 +26,7 @@ var keyPrefix = "/docker-seaweedfs-plugin/"
 
 type seaweedfsVolume struct {
 	Options []string
-
-	Name        string
-	connections int
+	Name    string
 }
 
 func Mountpoint(volName string) string {
@@ -35,6 +34,63 @@ func Mountpoint(volName string) string {
 }
 func (v seaweedfsVolume) Mountpoint() string {
 	return Mountpoint(v.Name)
+}
+func (v seaweedfsVolume) connections() int {
+	c, _ := listConnections(v.Name)
+
+	return len(c)
+}
+func (v seaweedfsVolume) addConnection(req string) error {
+	f, err := getStore()
+	if err != nil {
+		return err
+	}
+
+	r := strings.NewReader(req)
+
+	result, err := f.Upload(r, int64(r.Size()), keyPrefix+v.Name+"/connections/"+req, "", "")
+	if err != nil {
+		fmt.Errorf("Error trying to addConnection: %s, %v", v.Name, err)
+	}
+	logrus.WithField("addConnection", v.Name).Debugf("returns %#v\n", result)
+
+	return err
+}
+func (v seaweedfsVolume) delConnection(req string) error {
+	f, err := getStore()
+	if err != nil {
+		return err
+	}
+
+	err = f.Delete(keyPrefix+v.Name+"/connections/"+req, nil)
+	if err != nil {
+		fmt.Errorf("Error trying to delConnection: %s, %v", v.Name, err)
+	}
+	return err
+}
+
+func listConnections(volName string) (connections []string, err error) {
+	f, err := getStore()
+	if err != nil {
+		logrus.WithField("listConnections", len(connections)).
+			Debugf("getStore returns error: %#v\n", err)
+		return connections, err
+	}
+	files, err := f.ListDir(keyPrefix + volName + "/connections/")
+	if err != nil {
+		logrus.WithField("listConnections", len(connections)).
+			Debugf("ListDir returns error: %#v\n", err)
+		return connections, err
+	}
+	for _, f := range files {
+		if f.IsDir {
+			connections = append(connections, f.Name)
+		}
+	}
+	logrus.WithField("listConnections", len(connections)).
+		Debugf("success: returns %#v\n", connections)
+
+	return connections, err
 }
 
 func getStore() (f *goseaweedfs.Filer, err error) {
