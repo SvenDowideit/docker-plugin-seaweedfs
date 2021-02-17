@@ -61,3 +61,20 @@ I want the plugin to start and update the seaweedfs swarm stack, and to listen t
 
 I also want to see if I can make a Docker cli plugin that talks to the volume plugin to allow the user to use the docker cli to make seaweedfs config changes.
 
+
+
+## `weed shell`
+
+```
+> volume.configure.replication -volumeId 1 -replication 001
+> volume.configure.replication -volumeId 7 -replication 001
+> volume.fix.replication
+replicating volume 7 001 from 10.0.1.15:8080 to dataNode 10.0.1.14:8080 ...
+replicating volume 1 001 from 10.0.1.15:8080 to dataNode 10.0.1.16:8080 ...
+> volume.configure.replication -volumeId 7 -replication 002
+> volume.configure.replication -volumeId 1 -replication 002
+> volume.fix.replication
+replicating volume 1 002 from 10.0.1.16:8080 to dataNode 10.0.1.14:8080 ...
+replicating volume 7 002 from 10.0.1.14:8080 to dataNode 10.0.1.16:8080 ...
+> 
+```

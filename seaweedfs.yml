@@ -34,44 +34,22 @@ services:
       - data:/data
     deploy:
       mode: global
+      #replicas: 3
 
   filer:
     hostname: "{{.Node.Hostname}}_{{.Service.Name}}"
-    image: chrislusf/seaweedfs:latest
-    command: 'filer -master=master:9333 -port=8888 -peers=filer:8888,localhost:8888'
-    ports:
-      - 8888:8888
+    # use an entrypoint script to detect peer's using the dnsrr response
+    image: svendowideit/seaweedfs-volume-plugin-filer:seaweedfs-2.24
     networks:
       - internal
     volumes:
       - filer:/filer/
-    configs:
-      - source: filer_toml
-        target: /etc/seaweedfs/filer.toml
-        mode: 0755
     deploy:
       mode: global
+      endpoint_mode: dnsrr      
 
   # TODO: figure out how to handle a swarm where the number of managers has been reduced...
   # this is a --force-new-cluster event, so probably just needs disaster recovery docs
-
-  # docker run --network seaweedfs_internal appcelerator/etcd etcdctl --endpoints=etcd:2379 put /test once
-  # docker run --network seaweedfs_internal appcelerator/etcd etcdctl --endpoints=etcd:2379 get / --prefix
-  # etcd:
-  #   hostname: "{{.Node.Hostname}}_{{.Service.Name}}"
-  #   image: appcelerator/etcd:latest
-  #   volumes:
-  #     - etcd:/data
-  #   networks:
-  #     - internal
-  #   environment:
-  #     SERVICE_NAME: "etcd"
-  #     MIN_SEEDS_COUNT: 1
-  #   deploy:
-  #     mode: global
-  #     placement:
-  #       constraints:
-  #        - node.role == manager
 
   s3:
     image: chrislusf/seaweedfs:latest
@@ -94,28 +72,25 @@ services:
         condition: none
 
   # disabled for dev
-  # docker-volume-plugin:
-  #   image: ${PLUGIN_NAME}:${PLUGIN_TAG}
-  #   environment:
-  #     DEBUG: 'true'
-  #   volumes:
-  #     - /var/lib/docker/plugins/swarm/rootfs/tmp:/tmp
-  #     - /var/lib/docker/plugins/swarm/rootfs/mnt:/mnt
-  #     #- /var/lib/docker/plugins/swarm/propagated-mount:/propagated-mount
-  #     - /run:/run
-  #   networks:
-  #     - internal
-  #   deploy:
-  #     mode: global
+  docker-volume-plugin:
+    #image: ${PLUGIN_NAME}:${PLUGIN_TAG}
+    image: svendowideit/seaweedfs-volume-plugin-rootfs:seaweedfs-2.24
+    environment:
+      DEBUG: 'true'
+    volumes:
+      - /var/lib/docker/plugins/swarm/rootfs/tmp:/tmp
+      - /var/lib/docker/plugins/swarm/rootfs/mnt:/mnt
+      #- /var/lib/docker/plugins/swarm/propagated-mount:/propagated-mount
+      - /run:/run
+    networks:
+      - internal
+    deploy:
+      mode: global
 
 volumes:
   data:
   filer:
   #etcd:
-
-configs:
-  filer_toml:
-    file: ./seaweedfs/filer.toml
 
 networks:
   internal:

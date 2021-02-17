@@ -132,20 +132,32 @@ func listVolumes() (vol []string, err error) {
 func getVolumeInfo(name string) (vol seaweedfsVolume, err error) {
 	f, err := getStore()
 	if err != nil {
+		logrus.WithField("getVolumeInfo", name).
+			Debugf("getStore returns error: %#v\n", err)
 		return vol, err
 	}
 
-	data, status, err := f.Get(keyPrefix+name+"/json", nil, nil)
+	path := keyPrefix + name + "/json"
+	data, status, err := f.Get(path, nil, nil)
 	if err != nil {
-		fmt.Errorf("Error trying accessing volume: %v", name)
+		logrus.WithField("getVolumeInfo", name).
+			Debugf("Get(%s) returns error: %#v\n", path, err)
 		return vol, err
 	}
-	logrus.WithField("get", name).WithField("status", status).Debugf("returns %#v\n", data)
+	logrus.WithField("get", name).WithField("status", status).Debugf("returns %#v\n", string(data))
+	if status < 200 || status > 299 {
+		logrus.WithField("getVolumeInfo", name).
+			Debugf("volume %s not found (status: %d)", name, status)
+		return vol, fmt.Errorf("volume %s not found (status: %d)", name, status)
+	}
 
 	if err := json.Unmarshal(data, &vol); err != nil {
+		logrus.WithField("getVolumeInfo", name).
+			Debugf("Unmarshal(%s) returns error: %#v\n", data, err)
 		return vol, err
 	}
 
+	logrus.WithField("get", name).Debugf("success %#v\n", vol)
 	return vol, err
 }
 
@@ -172,16 +184,17 @@ func updateVolumeInfo(vol seaweedfsVolume) error {
 	return err
 }
 
-func removeVolumeInfo(name string) error {
-	f, err := getStore()
-	if err != nil {
-		return err
-	}
+func removeVolumeInfo(name string) (err error) {
+	// f, err := getStore()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = f.Delete(keyPrefix+name, nil)
-	if err != nil {
-		fmt.Errorf("Error trying to delete key: %v", name)
-	}
+	// err = f.Delete(keyPrefix+name, nil)
+	// if err != nil {
+	// 	fmt.Errorf("Error trying to delete key: %v", name)
+	// }
+	logrus.WithField("removeVolumeInfo", name).Debugf("ignoring remove - I think it causes weird issues")
 
 	return err
 }

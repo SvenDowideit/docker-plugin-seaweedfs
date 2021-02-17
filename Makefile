@@ -63,9 +63,15 @@ run-rootfs:
 		-e DEBUG=true \
 		${PLUGIN_NAME}-rootfs:${PLUGIN_TAG}
 
+build-filer:
+	docker build -t ${PLUGIN_NAME}-filer:${PLUGIN_TAG} filer/
+
 test-filer:
 	#@docker exec -it debug_swarmfs curl -F "filename=/etc/hostname" http://filer:8888/docker-seaweedfs-plugin/test
 	@docker run --rm -it --net seaweedfs_internal onaci/curl -F "filename=/etc/hostname" http://filer:8888/docker-seaweedfs-plugin/test
+
+ls-filer:
+	@docker run --rm -it --net seaweedfs_internal onaci/curl http://filer:8888/
 
 # not using real managed docker plugins now, using a swarm service
 # create:
