@@ -72,20 +72,20 @@ services:
         condition: none
 
   # disabled for dev
-  docker-volume-plugin:
-    #image: ${PLUGIN_NAME}:${PLUGIN_TAG}
-    image: svendowideit/seaweedfs-volume-plugin-rootfs:seaweedfs-2.24
-    environment:
-      DEBUG: 'true'
-    volumes:
-      - /var/lib/docker/plugins/swarm/rootfs/tmp:/tmp
-      - /var/lib/docker/plugins/swarm/rootfs/mnt:/mnt
-      #- /var/lib/docker/plugins/swarm/propagated-mount:/propagated-mount
-      - /run:/run
-    networks:
-      - internal
-    deploy:
-      mode: global
+  # docker-volume-plugin:
+  #   #image: ${PLUGIN_NAME}:${PLUGIN_TAG}
+  #   image: svendowideit/seaweedfs-volume-plugin-rootfs:seaweedfs-2.24
+  #   environment:
+  #     DEBUG: 'true'
+  #   volumes:
+  #     - /var/lib/docker/plugins/swarm/rootfs/tmp:/tmp
+  #     - /var/lib/docker/plugins/swarm/rootfs/mnt:/mnt
+  #     #- /var/lib/docker/plugins/swarm/propagated-mount:/propagated-mount
+  #     - /run:/run
+  #   networks:
+  #     - internal
+  #   deploy:
+  #     mode: global
 
 volumes:
   data:

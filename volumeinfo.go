@@ -29,11 +29,17 @@ type seaweedfsVolume struct {
 	Name    string
 }
 
-func Mountpoint(volName string) string {
+func SourcePath(volName string) string {
 	return filepath.Join("/mnt/docker-volumes", volName)
 }
-func (v seaweedfsVolume) Mountpoint() string {
-	return Mountpoint(v.Name)
+func MountPath(volName string) string {
+	return filepath.Join(SourcePath(volName), "_data")
+}
+func (v seaweedfsVolume) SourcePath() string {
+	return SourcePath(v.Name)
+}
+func (v seaweedfsVolume) MountPath() string {
+	return filepath.Join(v.SourcePath(), "_data")
 }
 func (v seaweedfsVolume) connections() int {
 	c, _ := listConnections(v.Name)
