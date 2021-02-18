@@ -1,5 +1,5 @@
 # https://hub.docker.com/_/golang?tab=tags&page=1&ordering=last_updated
-FROM golang:1.15-alpine as builder
+FROM golang:1.16-alpine as builder
 
 WORKDIR /src
 RUN set -ex \

@@ -7,10 +7,12 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	//"sync"
 	"time"
@@ -596,6 +598,16 @@ func runCmd(command string, args ...string) (string, error) {
 // TODO: may need to figure out if installing as a swarm plugin also gives me access to the seaweedfs_internal network:
 //       https://github.com/moby/moby/blob/master/integration/service/plugin_test.go#L109
 func main() {
+	defer func() {
+		logrus.Infof("Caught signal, cleaning up\n")
+		os.Remove(socketAddress)
+	}()
+
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
+	ctx, tdone := signal.NotifyContext(ctx, syscall.SIGTERM)
+	defer tdone()
+
 	debug := os.Getenv("DEBUG")
 	if ok, _ := strconv.ParseBool(debug); ok {
 		logrus.SetLevel(logrus.DebugLevel)
@@ -614,11 +626,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	h := volume.NewHandler(d)
 
-	logrus.Infof("listening on %s", socketAddress)
-	// TODO: need to do this using a signal handler...
-	defer os.Remove(socketAddress)
+	logrus.Infof("no-ctx listening on %s", socketAddress)
 
-	logrus.Error(h.ServeUnix(socketAddress, 0))
+	go func() {
+		logrus.Error(h.ServeUnix(socketAddress, 0))
+	}()
+
+	logrus.Infof("Waiting for SIGTERM")
+
+	<-ctx.Done()
 }

@@ -1,6 +1,6 @@
-module github.com:SvenDowideit/docker-plugin-seaweedfs
+module github.com/SvenDowideit/docker-plugin-seaweedfs
 
-go 1.12
+go 1.16
 
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.3.0
 
