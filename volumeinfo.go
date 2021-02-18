@@ -35,12 +35,20 @@ func SourcePath(volName string) string {
 func MountPath(volName string) string {
 	return filepath.Join(SourcePath(volName), "_data")
 }
+func InnerMountPath(volname string) string {
+	return filepath.Join(MountPath(volname), "_inner")
+}
+
 func (v seaweedfsVolume) SourcePath() string {
 	return SourcePath(v.Name)
 }
 func (v seaweedfsVolume) MountPath() string {
-	return filepath.Join(v.SourcePath(), "_data")
+	return MountPath(v.Name)
 }
+func (v seaweedfsVolume) InnerMountPath() string {
+	return InnerMountPath(v.Name)
+}
+
 func (v seaweedfsVolume) connections() int {
 	c, _ := listConnections(v.Name)
 

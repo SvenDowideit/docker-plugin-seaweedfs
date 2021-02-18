@@ -123,7 +123,7 @@ func (d *seaweedfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, err
 		return &volume.PathResponse{}, logError("volume %s not found", r.Name)
 	}
 
-	return &volume.PathResponse{Mountpoint: filepath.Join(getPluginDir(), "rootfs", v.MountPath())}, nil
+	return &volume.PathResponse{Mountpoint: filepath.Join(getPluginDir(), "rootfs", v.InnerMountPath())}, nil
 }
 
 // Mount is called once per container start.
@@ -146,6 +146,7 @@ func (d *seaweedfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, 
 	if err != nil {
 		logrus.Infof("IsMounted(%s, %s) returned error: %s", "filer:8888:"+v.SourcePath(), v.MountPath(), err)
 	}
+
 	if !mounted {
 		logrus.Infof("Mounting to %s", v.MountPath())
 		fi, err := os.Lstat(v.SourcePath())
@@ -161,11 +162,16 @@ func (d *seaweedfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, 
 			return &volume.MountResponse{}, logError("%v already exists and it's not a directory", v.SourcePath())
 		}
 
-		if err := d.mountVolume(&v); err != nil {
+		uid, gid, mode, err := d.mountVolume(&v)
+		if err != nil {
 			return &volume.MountResponse{}, logError(err.Error())
 		}
 
 		// TODO: wait for the mount to be confirmed as successful, or timeout and return error
+		// this should fix the race...
+
+		os.MkdirAll(v.InnerMountPath(), mode)
+		os.Chown(v.InnerMountPath(), uid, gid)
 
 	}
 
@@ -176,7 +182,7 @@ func (d *seaweedfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, 
 		logrus.WithField("method", "mount").WithField("updateVolumeInfo", r.Name).Debugf("%#v", v)
 	}
 
-	return &volume.MountResponse{Mountpoint: filepath.Join(getPluginDir(), "rootfs", v.MountPath())}, nil
+	return &volume.MountResponse{Mountpoint: filepath.Join(getPluginDir(), "rootfs", v.InnerMountPath())}, nil
 }
 
 // Docker is no longer using the named volume.
@@ -297,7 +303,7 @@ func (d *seaweedfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error)
 
 	return &volume.GetResponse{Volume: &volume.Volume{
 		Name:       r.Name,
-		Mountpoint: filepath.Join(getPluginDir(), "rootfs", v.MountPath()),
+		Mountpoint: filepath.Join(getPluginDir(), "rootfs", v.InnerMountPath()),
 	}}, nil
 }
 
@@ -317,7 +323,7 @@ func (d *seaweedfsDriver) List() (*volume.ListResponse, error) {
 		// }
 		thisVol := volume.Volume{
 			Name:       volName,
-			Mountpoint: filepath.Join(getPluginDir(), "rootfs", MountPath(volName)),
+			Mountpoint: filepath.Join(getPluginDir(), "rootfs", InnerMountPath(volName)),
 		}
 		vols = append(vols, &thisVol)
 		logrus.WithField("list", volName).Debugf("returns %#v\n", thisVol)
@@ -334,7 +340,7 @@ func (d *seaweedfsDriver) Capabilities() *volume.CapabilitiesResponse {
 	return &volume.CapabilitiesResponse{Capabilities: volume.Capability{Scope: "local"}}
 }
 
-func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) error {
+func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) (int, int, os.FileMode, error) {
 	logrus.WithField("method", "mountVolume").Debugf("volinfo: %#v", *v)
 
 	// TODO: need to do something with the options (uid mapping would rock)
@@ -399,6 +405,14 @@ func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) error {
 		}
 	}
 
+	dataDir := v.MountPath()
+	os.MkdirAll(dataDir, mode)
+	os.Chown(dataDir, uid, gid)
+
+	logrus.Infoln("############## sleeping for 1 seconds")
+	time.Sleep(1 * time.Second)
+	logrus.Infoln("done, letting the fs settle?")
+
 	// TODO: what should we do if there already is one - atm, the output to the user "ok"
 	// the error maybe should be to tell them there is somethign wrong, and they might be able to fix it
 	// if they force kill the plugin-vol (so long as its not yet in use?) - and then remove the mount point, and ???
@@ -457,15 +471,15 @@ func (d *seaweedfsDriver) mountVolume(v *seaweedfsVolume) error {
 	)
 	logrus.WithField("method", "mountVolume").WithField("image", imageName).Debugf("Starting %s", containerName)
 	if err != nil {
-		return logError("Error runing Container: %s", err)
+		return uid, gid, mode, logError("Error runing Container: %s", err)
 	}
 	// TODO: test that we have actually mounted
+	// or test here?
+	logrus.Infoln("sleeping for 2 seconds")
+	time.Sleep(2 * time.Second)
+	logrus.Infoln("done, should make this into a 'are we mounted yet' loop with a timeout")
 
-	dataDir := v.MountPath()
-	os.MkdirAll(dataDir, mode)
-	os.Chown(dataDir, uid, gid)
-
-	return nil
+	return uid, gid, mode, nil
 }
 
 var pluginDir = ""
